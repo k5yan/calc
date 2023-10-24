@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import styles from './calculator.module.css';
 
-const calculations = [`+`, `-`, `C`, `=`];
+const calculations = [`+`, `-`, `=`, `C`];
 
 const buttonList = [
 	// все элементы калькулятора в массиве
@@ -96,104 +96,84 @@ const buttonList = [
 		func: `equal`,
 	},
 ];
-
-let expressionResult = 0; //результат выражения здесь
-let secondNumber = ``; //второе число
-let writingChanger = false; // true for write in expressionResult(leftNumber);
-let opCounter = 0; //счетчик операций, нужен чтобы вовремя начать считать
-let operationType = `default`; //параметр, содержащий тип операции
-
-const changerOption = {
-	false: (symbol, expression) => {
-		expressionResult = parseInt(expression + symbol);
-	},
-	true: (symbol) => {
-		secondNumber += symbol;
-	},
-};
-
 export const CalcMaker = () => {
-	const [expression, setExpression] = useState(` `); //выражение на экране калькулятора
+	const [expression, setExpression] = useState(``);
+	const [firstNumber, setFirstNumber] = useState(0);
+	const [secondNumber, setSecondNumber] = useState(``);
+	const [operator, setOperator] = useState(`default`);
 
-	const types = {
-		// сборник функций для кнопок меню
-		plus: (leftNumber, rightNumber) => {
-			return leftNumber + rightNumber;
-		},
-		minus: (leftNumber, rightNumber) => {
-			return leftNumber - rightNumber;
-		},
-		equal: () => {
-			setExpression(expression + `=` + expressionResult.toString());
-		},
-		clear: () => {
-			window.location.reload(); // я надеюсь так можно было
-		},
-	};
+	const screenRef = useRef(null);
 
-	const checkAndWrite = (symbol, func) => {
-		//проверка какой символ введен, цифра или нет
+	useEffect(() => {
+		if (operator === 'equal') {
+			setExpression((prevExpression) => prevExpression + firstNumber);
+			screenRef.current.style.color = `red`;
+		}
+	}, [firstNumber, operator]);
+
+	const inputCheck = (symbol, func) => {
+		screenRef.current.style.color = `white`;
 		if (
 			!calculations.includes(symbol) ||
 			(!(expression[expression.length - 1] === symbol) &&
 				!calculations.includes(expression[expression.length - 1]))
 		) {
-			if (!calculations.includes(symbol)) {
-				if (operationType !== `equal`) {
-					changerOption[writingChanger](symbol, expression);
-					setExpression(expression + symbol);
+			if (calculations.includes(symbol)) {
+				if (func === `clear`) {
+					setExpression(``);
+					setFirstNumber(0);
+					setSecondNumber(``);
+					setOperator(`default`);
+				} else {
+					setExpression((prevExpression) => prevExpression + symbol);
+					operationStart(operator);
+					setOperator(func);
+					setSecondNumber(``);
 				}
 			} else {
-				document.querySelector(`#screen`).style.color = `white`;
-				if (func !== `equal`) {
-					if (!writingChanger) {
-						writingChanger = !writingChanger;
-					}
-					operationType = func;
+				if (operator !== `equal`) {
+					setExpression((prevExpression) => prevExpression + symbol);
+					//добавил строку выше, чтобы после 2+2=4 нельзя было вводить дальше цифры,
+					//и не получалось 2+2=4823 и тд
+					setSecondNumber((prev) => prev + symbol);
 				}
-				opCounter++;
-				setExpression(expression + symbol);
 			}
-		} else {
-			setExpression(expression.replace(expression[expression.length - 1], symbol));
-			operationType = func;
 		}
-		console.log(symbol);
-		console.log(`expression = `, expression);
-		console.log(`expressionResult = `, expressionResult);
-		console.log(`secondNumber = `, secondNumber);
-		console.log(`operationType = `, operationType);
-		console.log(`writingChanger = `, writingChanger);
-		console.log(`changeCounter = `, opCounter);
-		console.log(`-----------------------------------------------`);
+		console.log(`---------------iC----------------`);
+		console.log(`screenRef :`, screenRef);
+		console.log(`firstNumber :`, firstNumber);
+		console.log(`secondNumber :`, secondNumber);
+		console.log(`operator :`, operator);
 	};
 
-	const setСalculations = (symbol, func) => {
-		//главная функция
-		checkAndWrite(symbol, func);
-		if (opCounter > 1) {
-			expressionResult = types[operationType](
-				expressionResult,
-				parseInt(secondNumber),
-			);
-			opCounter--;
-			secondNumber = ``;
-		}
-		if (func === `equal`) {
-			opCounter = 0;
-			operationType = `equal`;
-			types.equal();
-			document.querySelector(`#screen`).style.color = `red`;
-		}
-		if (func === `clear`) {
-			types.clear();
+	const operationStart = (funcToCalc) => {
+		console.log(`---------------OS----------------`);
+		console.log(`firstNumber :`, firstNumber);
+		console.log(`secondNumber :`, secondNumber);
+		console.log(`operator :`, operator);
+		switch (funcToCalc) {
+			case `plus`:
+				setFirstNumber((prev) =>
+					(parseInt(prev, 10) + parseInt(secondNumber, 10)).toString(),
+				);
+				break;
+			case `minus`:
+				setFirstNumber((prev) =>
+					(parseInt(prev, 10) - parseInt(secondNumber, 10)).toString(),
+				);
+				break;
+			case `equal`: //без этой строки, после = нельзя продолжить операцию -
+				//secondNumber стерт, и его значение переходит к firstNumber
+				break;
+			default:
+				setFirstNumber(secondNumber);
 		}
 	};
 
 	return (
 		<>
 			<div className={styles.calcWindow}>
-				<div id="screen" className={styles.calcScreenExpression}>
+				<div id="screen" className={styles.calcScreenExpression} ref={screenRef}>
 					{expression}
 				</div>
 				{buttonList.map(({ id, className, symbol, func }) => {
@@ -201,7 +181,7 @@ export const CalcMaker = () => {
 						<button
 							key={id}
 							className={styles[`${className}`]}
-							onClick={() => setСalculations(symbol, func)}
+							onClick={() => inputCheck(symbol, func)}
 						>
 							{symbol}
 						</button>
